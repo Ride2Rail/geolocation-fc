@@ -1,30 +1,21 @@
-from abc import ABC, abstractmethod
-
 import geojson
 import redis
 import r2r_offer_utils.cache_operations
 import logging
+import itertools
 
 logger = logging.getLogger('geolocation-fc.OfferCacheCommunication')
 
 
-class Communicator(ABC):
-    def __init__(self, data):
-        self.data = data
 
-    @abstractmethod
-    def access_data_item_level(self, dict_data):
-        pass
-
-
-class OfferCacheCommunicator(Communicator):
+class OfferCacheCommunicator:
     """
         Establishes connection with the offer cache. Provides methods to communicate with offer cache.
     """
 
     def __init__(self, config, data=None):
         # get the ports
-        super().__init__(data)
+        # self.data = data
         if config is not None:
             # read connection parameters from the config file
             CACHE_HOST = config.get('cache', 'host')
@@ -37,6 +28,19 @@ class OfferCacheCommunicator(Communicator):
                 logger.error("Connection to the offer cache has not been established.")
         else:
             logger.error('Could not read config file in offer_cache_extractor.py')
+
+    def write_coords(self, request_id, coord_dict):
+        pipe = self.cache.pipeline()
+        for coord, city in coord_dict.items():
+            if city is not None:
+                pipe.set(f'{request_id}:city_coordinates:{coord[0]}:{coord[1]}', city)
+        try:
+            pipe_res_list = pipe.execute()
+        # Raised if incorrect key types were provided
+        except redis.exceptions.RedisError as re:
+            logger.error(f"Error when reading from cache, probably wrong data type: \n{re}")
+            return False
+        return True
 
     def redis_request_level_item(self, request_id, request_level_keys, request_level_types):
         """

@@ -14,6 +14,8 @@ logger = logging.getLogger('data_provider_api.DataExtractors')
 class GeoLocationManager:
     def __init__(self, config):
         self.occ = OfferCacheCommunicator(config)
+        self.geo_attribute_list = ["start_point", "end_point", "via_locations"]
+        self.geo_datatype_list = ["v", "v", "v"]
 
     def extract_cache_data(self, request_id) -> dict:
         """
@@ -21,47 +23,55 @@ class GeoLocationManager:
         :param request_id:
         :return: dictionary with keys from attribute list, and information with key as leg_information
         """
-        attribute_list = ["start_point", "end_point", "via_locations"]
-        datatype_list = ["v", "v", "v"]
         res = {}
         # create geolocation extractor
         ge = GeoLocationExtractor()
         try:
-            res = self.occ.redis_request_level_item(request_id, attribute_list, datatype_list)
+            res = self.occ.redis_request_level_item(request_id, self.geo_attribute_list, self.geo_datatype_list)
             # extract location data here
-            # TODO: finish  this!
-            # res = self.extrac_coord_list(res, ge)
+            res = self.extrac_coord_list(res, ge)
         except KeyError as ke:
             logger.error(f"OCCommunicationManager error, key not found in received data from offer cache: {ke}")
 
         return res
 
+    def write_cache_data(self, request_id, coord_city_dict):
+        """
+        writes the data to the cache
+        :param request_id:
+        :param coord_city_dict: dictionary with coordinate tuples as keys and citynames as values
+        :return: if the writing was successful
+        """
+        self.occ.write_coords(request_id, coord_city_dict)
+
     def extrac_coord_list(self, oc_dict, geo_loc_extractor):
-        extracted_keys = []
-        geojson_list = []
-        for key in ['start_point', 'end_point', 'via_locations']:
+        extracted_keys = [] # list of keys that were extracted
+        geo_coord_list = [] # list of geocoordinates
+        for key in self.geo_attribute_list:
             if key in oc_dict:
                 try:
+                    # extract coordinates and puts them into a list
                     coord_list = self.extract_coords_geojson(oc_dict, key)
                     # if it is a list append it to a list
-                    if coord_list[0] is list:
-                        geojson_list += coord_list
+                    if type(coord_list) is list:
+                        geo_coord_list += coord_list
                     else:
-                        geojson_list.append(coord_list)
+                        geo_coord_list.append(coord_list)
                     extracted_keys.append(key)
                 except Exception as ex:
                     logger.error(f"Error when extracting locations in OCCommunicationManager: {ex}")
                     oc_dict = None
-        if len(geojson_list) > 0:
-            res_list = geo_loc_extractor.process_location_list(geojson_list)
-
-        return oc_dict
+        if len(geo_coord_list) > 0:
+            res_list = geo_loc_extractor.process_location_list(geo_coord_list)
+            return res_list
+        return []
 
     def extract_coords_geojson(self, oc_data, key):
         try:
             coord_list = geojson.loads(oc_data[key])['coordinates']
             float_coords = []
-            if coord_list[0] is list:
+            # if it is a list of coords
+            if type(coord_list[0]) is list:
                 for coords in coord_list:
                     coords = self.float_coords(coords)
                     if coords is not None:
@@ -73,9 +83,10 @@ class GeoLocationManager:
             logger.error(f"Error when extracting locations in OCCommunicationManager: {ex}")
         return None
 
-    def float_coords(self, coords):
+    @staticmethod
+    def float_coords(coords):
         try:
-            return (float(coords[1]), float(coords[0]))
+            return float(coords[1]), float(coords[0])
         except ValueError as ve:
             logger.error(f'Error when converting coordinates from string to float: {ve}')
         return None
@@ -109,7 +120,7 @@ class GeoLocationExtractor:
         except Exception as e:
             logging.error(f"Unexpected exception at GeoLocator {e}")
 
-    def get_city_location(self, lat, lon):
+    def coordinates_to_city(self, lat, lon):
         """
         Uses reverse_geocode function to extract data from Nominatim and then extracts the city
         :param lat: latitude
@@ -124,10 +135,10 @@ class GeoLocationExtractor:
                 logger.error("Missing city in location dictionary in GeoLocationExtractor")
         else:
             logger.error("Location address not obtained in GeoLocationExtractor")
-        logger.info(f'succesfully obtained city {city} for the location: {lat}, {lon}')
+        logger.info(f'successfully obtained city {city} for the location: {lat}, {lon}')
         return city
 
-    def loc_list_simplifier(self, loc_dict, round_dec=3):
+    def city_obtainer(self, loc_dict, round_dec=3):
         """
         For each location in the loc_dict extract the city using the method get_city_location. The coordinates are
         first rounded to round_dec decimal points. Then only for the unique coordinates are cities extracted.
@@ -137,46 +148,41 @@ class GeoLocationExtractor:
         :param round_dec: number of decimals to which round the coordinates, to decrease the number of requests
         :return: loc_dict with original coordinates as keys and city names as values
         """
-        location_mapper = {}
+        simplified_location_mapper = {}
         # simplify the coordinates and map the original to a dictionary
         for coords in loc_dict.keys():
             try:
-                # round the coordinates
+                # round the coordinates to avoid sending duplicities
                 round_coords = (round(coords[0], round_dec), round(coords[1], round_dec))
                 # creates or appends to the list with the given coordinates
-                if round_coords in location_mapper:
-                    location_mapper[round_coords].append(coords)
+                if round_coords in simplified_location_mapper:
+                    simplified_location_mapper[round_coords].append(coords)
                 else:  # the key is new so also add it to the city dict
-                    location_mapper[round_coords] = [coords]
+                    simplified_location_mapper[round_coords] = [coords]
             except TypeError as te:
                 logger.error(f"Error in type: {te}")
 
         # extract the cities and map them back to coordinates
-        for round_coords in location_mapper.keys():
+        for round_coords in simplified_location_mapper.keys():
             # extract the city
-            city = self.get_city_location(round_coords[0], round_coords[1])
+            city = self.coordinates_to_city(round_coords[0], round_coords[1])
             # map it back to the coordinates
-            for coords in location_mapper[round_coords]:
+            for coords in simplified_location_mapper[round_coords]:
                 loc_dict[coords] = city
-
         return loc_dict
 
     def __reshape_locations(self, locations):
         loc_dict = {}
         for loc in locations:
-            try:
-                loc_dict[(float(loc[1]), float(loc[0]))] = None
-            except ValueError as ve:
-                logger.error(f'Error when converting coordinates from string to float: {ve}')
-
+            loc_dict[(loc[0], loc[1])] = None
         return loc_dict
 
-    def process_location_list(self, locations):
+    def process_location_list(self, coord_list):
         # reshape the list of locations
-        loc_dict = self.__reshape_locations(locations)
+        loc_dict = self.__reshape_locations(coord_list)
         # obtain the cities
-        simplified_locs = self.loc_list_simplifier(loc_dict, 3)
-        # simplified_locs = self.loc_list_simplifier(loc_list, 3)
+        # simplified_locs = self.loc_list_simplifier(loc_dict, 3)
+        simplified_locs = self.city_obtainer(loc_dict, 3)
         return simplified_locs
 
     # source: http://www.martinbroadhurst.com/removing-duplicates-from-a-list-while-preserving-order-in-python.html
