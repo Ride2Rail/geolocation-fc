@@ -27,7 +27,11 @@ class GeoLocationManager:
         # create geolocation extractor
         ge = GeoLocationExtractor()
         try:
+            # load redis data
             res = self.occ.redis_request_level_item(request_id, self.geo_attribute_list, self.geo_datatype_list)
+            if res is None or res == {}:
+                logger.error(f"No data extracted from cache in GeoLocationManager.")
+                return None
             # extract location data here
             res = self.extrac_coord_list(res, ge)
         except KeyError as ke:
@@ -42,7 +46,7 @@ class GeoLocationManager:
         :param coord_city_dict: dictionary with coordinate tuples as keys and citynames as values
         :return: if the writing was successful
         """
-        self.occ.write_coords(request_id, coord_city_dict)
+        return self.occ.write_coords(request_id, coord_city_dict)
 
     def extrac_coord_list(self, oc_dict, geo_loc_extractor):
         extracted_keys = [] # list of keys that were extracted
