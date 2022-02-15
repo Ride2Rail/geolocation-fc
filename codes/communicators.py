@@ -1,11 +1,8 @@
-import geojson
 import redis
-import r2r_offer_utils.cache_operations
 import logging
 import itertools
 
 logger = logging.getLogger('geolocation-fc.OfferCacheCommunication')
-
 
 
 class OfferCacheCommunicator:

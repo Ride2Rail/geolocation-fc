@@ -1,8 +1,8 @@
 import os
-from flask import Flask, abort
+from flask import Flask
 from r2r_offer_utils.advanced_logger import *
 
-from geolocators import GeoLocationManager
+from codes.geolocators import GeoLocationManager
 
 service_name = os.path.splitext(os.path.basename(__file__))[0]
 
@@ -13,6 +13,7 @@ app = Flask(service_name)
 
 gm = GeoLocationManager(config)
 
+# curl -v -X GET "http://127.0.0.1:5015/9d1cfc79-90e5-446b-8fbc-5e0c5ea9efa7"
 @app.route('/<request_id>', methods=['GET'])
 def get_data(request_id):
     data = gm.extract_cache_data(request_id)
@@ -31,5 +32,5 @@ def get_data(request_id):
 
 if __name__ == '__main__':
     os.environ["FLASK_ENV"] = "development"
-    app.run(port=5123, debug=True, use_reloader=False)
+    app.run(port=5015, debug=True, use_reloader=False)
     exit(0)

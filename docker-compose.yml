@@ -1,0 +1,18 @@
+version: "3.0"
+
+services:
+  geolocation-fc:
+    container_name: geolocation-fc
+    build:
+      context: .
+    # dockerfile: Dockerfile.production
+    ports:
+      - "5015:5000"
+    networks:
+        - offer-enhancer-net
+
+
+networks:
+  offer-enhancer-net:
+    external:
+      name: trias-extractor_offer-enhancer-net

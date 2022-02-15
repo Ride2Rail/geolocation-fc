@@ -6,10 +6,9 @@ import geojson
 from geopy.geocoders import Nominatim
 from geopy.exc import GeocoderTimedOut, GeocoderServiceError
 
-from communicators import OfferCacheCommunicator
+from codes.communicators import OfferCacheCommunicator
 
-logger = logging.getLogger('data_provider_api.DataExtractors')
-
+logger = logging.getLogger('geolocation=fc.Geolocators')
 
 class GeoLocationManager:
     def __init__(self, config):
