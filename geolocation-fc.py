@@ -12,12 +12,8 @@ config = ConfigLoader(LoggerFormatter(logger), service_name).config
 app = Flask(service_name)
 
 gm = GeoLocationManager(config)
-# curl --header 'Content-Type: application/json' \
-#        --request POST  \
-#        --data '{"request_id": "9d1cfc79-90e5-446b-8fbc-5e0c5ea9efa7" }' \
-#          http://localhost:5015/compute
 
-# curl -v -X GET "http://127.0.0.1:5015/9d1cfc79-90e5-446b-8fbc-5e0c5ea9efa7"
+# curl -X POST http://127.0.0.1:5015/compute -d '{"request_id": "9d1cfc79-90e5-446b-8fbc-5e0c5ea9efa7"}' -H "Content-Type: application/json"
 @app.route('/compute', methods=['POST'])
 def extract():
     req_data = request.get_json()
