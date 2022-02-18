@@ -10,30 +10,30 @@ from codes.communicators import OfferCacheCommunicator
 
 logger = logging.getLogger('geolocation=fc.Geolocators')
 
+
 class GeoLocationManager:
     def __init__(self, config):
         self.occ = OfferCacheCommunicator(config)
-        self.geo_attribute_list = ["start_point", "end_point", "via_locations"]
-        self.geo_datatype_list = ["v", "v", "v"]
         self.config = config
 
-    def extract_cache_data(self, request_id) -> dict:
+    def extract_cache_data(self, request_id, geo_attribute_list) -> dict:
         """
         Extracts the data in attribute_list, as well as leg information obtained by extractDetailedData
-        :param request_id:
+        :param geo_attribute_list: list of attributes to extract
+        :param request_id: id of the request used in cache key
         :return: dictionary with keys from attribute list, and information with key as leg_information
         """
         res = {}
         # create geolocation extractor
         ge = GeoLocationExtractor(self.config)
         try:
-            # load redis data
-            res = self.occ.redis_request_level_item(request_id, self.geo_attribute_list, self.geo_datatype_list)
+            # load redis data with the list of geo attributes and types of geo attributes
+            res = self.occ.redis_request_level_item(request_id, geo_attribute_list, ["v"] * len(geo_attribute_list))
             if res is None or res == {}:
                 logger.error(f"No data extracted from cache in GeoLocationManager.")
                 return None
             # extract location data here
-            res = self.extrac_coord_list(res, ge)
+            res = self.extrac_coord_list(res, ge, geo_attribute_list)
         except KeyError as ke:
             logger.error(f"OCCommunicationManager error, key not found in received data from offer cache: {ke}")
 
@@ -48,10 +48,10 @@ class GeoLocationManager:
         """
         return self.occ.write_coords(request_id, coord_city_dict)
 
-    def extrac_coord_list(self, oc_dict, geo_loc_extractor):
+    def extrac_coord_list(self, oc_dict, geo_loc_extractor, geo_attribute_list):
         extracted_keys = [] # list of keys that were extracted
         geo_coord_list = [] # list of geocoordinates
-        for key in self.geo_attribute_list:
+        for key in geo_attribute_list:
             if key in oc_dict:
                 try:
                     # extract coordinates and puts them into a list

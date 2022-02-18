@@ -10,7 +10,7 @@ e.g., "9d1cfc79-90e5-446b-8fbc-5e0c5ea9efa7:city_coordinates:38.750229:-9.174333
 ## Request example
 To translate the coordinates, run the request with request_id behind the port as:
 ```bash
-curl -X POST http://127.0.0.1:5015/compute -d '{"request_id": "123x"}' \
+curl -X POST http://127.0.0.1:5015/compute -d '{"request_id": "eaebc446-2492-482e-ae58-aa72bbaa21ca", "geo_attributes": ["start_point", "end_point", "via_locations"]}' \
      -H "Content-Type: application/json"
 ```
 If everything went fine, you shoud receive "OK", 200 response.
