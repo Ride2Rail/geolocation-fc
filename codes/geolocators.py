@@ -15,6 +15,7 @@ class GeoLocationManager:
         self.occ = OfferCacheCommunicator(config)
         self.geo_attribute_list = ["start_point", "end_point", "via_locations"]
         self.geo_datatype_list = ["v", "v", "v"]
+        self.config = config
 
     def extract_cache_data(self, request_id) -> dict:
         """
@@ -24,7 +25,7 @@ class GeoLocationManager:
         """
         res = {}
         # create geolocation extractor
-        ge = GeoLocationExtractor()
+        ge = GeoLocationExtractor(self.config)
         try:
             # load redis data
             res = self.occ.redis_request_level_item(request_id, self.geo_attribute_list, self.geo_datatype_list)
@@ -97,9 +98,15 @@ class GeoLocationManager:
 
 class GeoLocationExtractor:
 
-    def __init__(self):
-        user_agent = 'user_r_{}'.format(randint(1000, 9999))
-        self.geolocator = Nominatim(user_agent=user_agent)
+    def __init__(self, config):
+        user_agent = config.get('nominatim_options', 'user')
+        if user_agent == "default":
+            user_agent = 'user_r_{}'.format(randint(1000, 9999))
+        domain = config.get('nominatim_options', 'domain')
+        if domain == "default":
+            self.geolocator = Nominatim(user_agent=user_agent)
+        else:
+            self.geolocator = Nominatim(user_agent=user_agent, domain=domain)
 
     def reverse_geocode(self, lat, lon, sleep_millis=1200):
         """
