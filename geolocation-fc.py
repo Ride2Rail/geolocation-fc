@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request
+from flask import Flask, request, abort
 from r2r_offer_utils.advanced_logger import *
 
 from codes.geolocators import GeoLocationManager
@@ -13,7 +13,7 @@ app = Flask(service_name)
 
 gm = GeoLocationManager(config)
 
-# curl -X POST http://127.0.0.1:5015/compute -d '{"request_id": "9d1cfc79-90e5-446b-8fbc-5e0c5ea9efa7", "geo_attributes" = ["start_point", "end_point", "via_locations"]}' -H "Content-Type: application/json"
+# curl -X POST http://127.0.0.1:5015/compute -d '{"request_id": "9d1cfc79-90e5-446b-8fbc-5e0c5ea9efa7", "geo_attributes": ["start_point", "end_point", "via_locations"]}' -H "Content-Type: application/json"
 @app.route('/compute', methods=['POST'])
 def extract():
     req_data = request.get_json()
@@ -23,21 +23,32 @@ def extract():
         geo_attribute_list = req_data['geo_attributes']
     except KeyError as ke:
         logger.error(f"Missing data in the request: {ke}")
-        return "{'Wrong input data'}", 400
+        abort(400, "Wrong input data")
 
     data = gm.extract_cache_data(request_id, geo_attribute_list)
-    # if there was not anything written to cache
+    response = app.response_class(
+        response='{{"request_id": "{}"}}'.format(request_id),
+        status=200,
+        mimetype='application/json'
+    )
+
+    # if there was nothing written to cache
     if data is None:
-        return "{'Cache reading error'}", 500
+        abort(500, "Cache reading error")
+    # data is empty
     elif not data:
         logger.info("No location data was extracted from cache")
-        return "No location data", 200
+        return app.response_class(
+            response='{{"reason": "No data was written to cache, probably a wrong attribute name key", "request_id": "{}"}}'.format(request_id),
+            status=400,
+            mimetype='application/json'
+        )
     logger.info(f"Extracted the following data from cache: {data}")
     cache_writing = gm.write_cache_data(request_id, data)
     if cache_writing:
-        return "OK", 200
+        return response
     else:
-        return "{'Cache writing error'}", 500
+        abort(500, "Cache writing error")
 
 if __name__ == '__main__':
     os.environ["FLASK_ENV"] = "development"

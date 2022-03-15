@@ -34,7 +34,7 @@ Section ***"cache"***:
 - ***"host"*** - host address where the cache service that should be accessed by ***"geolocation-fc"*** is available
 - ***"port"*** - port number where the cache service that should be accessed used by ***"geolocation-fc"*** is available
 
-Section ***"running"***:
+Section ***"nominatim_options"***:
 - ***"domain"*** - Domain name for the Nominatim service. If value __"default"__ is used, then the default online Nominatim service is used.
 - ***"user"*** - User for the Nominatim service. If value __"default"__ is used, then a random username is generated for each request.
 
@@ -52,6 +52,7 @@ curl -X POST http://127.0.0.1:5015/compute -d '{"request_id": "123x", "geo_attri
 ```
 
 ## Responses
- - If everything went fine, you should receive _"OK", 200_ response.
- - In case of bad input data you receive _400_ response code.
- - If the writing to cache fails, you receive _500_ response code.
+ - If everything went fine, API returns JSON and _200_ response code.
+ - If there is a wrong geo attribute name, API returns JSON reason with _400_ response code
+ - In case of bad input data API returns _400_ response code.
+ - If the writing or reading the cache fails, API returns _500_ response code.
