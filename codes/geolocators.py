@@ -57,7 +57,9 @@ class GeoLocationManager:
                     # extract coordinates and puts them into a list
                     coord_list = self.extract_coords_geojson(oc_dict, key)
                     # if it is a list append it to a list
-                    if type(coord_list) is list:
+                    if not coord_list:
+                        continue
+                    elif type(coord_list) is list:
                         geo_coord_list += coord_list
                     else:
                         geo_coord_list.append(coord_list)
@@ -74,6 +76,8 @@ class GeoLocationManager:
         try:
             coord_list = geojson.loads(oc_data[key])['coordinates']
             float_coords = []
+            if not coord_list:
+                return None
             # if it is a list of coords
             if type(coord_list[0]) is list:
                 for coords in coord_list:

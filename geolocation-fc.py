@@ -26,13 +26,7 @@ def extract():
         abort(400, "Wrong input data")
 
     data = gm.extract_cache_data(request_id, geo_attribute_list)
-    response = app.response_class(
-        response='{{"request_id": "{}"}}'.format(request_id),
-        status=200,
-        mimetype='application/json'
-    )
-
-    # if there was nothing written to cache
+    # if there was nothing read from cache
     if data is None:
         abort(500, "Cache reading error")
     # data is empty
@@ -43,10 +37,15 @@ def extract():
             status=400,
             mimetype='application/json'
         )
+
     logger.info(f"Extracted the following data from cache: {data}")
     cache_writing = gm.write_cache_data(request_id, data)
     if cache_writing:
-        return response
+        return app.response_class(
+            response='{{"request_id": "{}"}}'.format(request_id),
+            status=200,
+            mimetype='application/json'
+        )
     else:
         abort(500, "Cache writing error")
 

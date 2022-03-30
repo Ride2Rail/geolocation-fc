@@ -59,9 +59,9 @@ class OfferCacheCommunicator:
             if data_type in transl_dict.keys():
                 self.redis_universal_get(pipe, request_id, key, data_type)
                 index_list.append(i)
-            else:
+            # else:
                 # removes the key. This can by replaced with res_dict[key] = None
-                del res_dict[key]
+                # del res_dict[key]
         # execute the pipe
         try:
             pipe_res_list = pipe.execute()
@@ -72,7 +72,8 @@ class OfferCacheCommunicator:
         # extract the data from the pipe to the dictionary, skips attributes with unexpected data type
         for pipe_req, i in itertools.zip_longest(pipe_res_list, index_list):
             if pipe_req is None or len(pipe_req) == 0:
-                del res_dict[request_level_keys[i]]
+                # del res_dict[request_level_keys[i]]
+                pass
             else:
                 res_dict[request_level_keys[i]] = pipe_req
 
