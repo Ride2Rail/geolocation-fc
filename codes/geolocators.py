@@ -10,6 +10,14 @@ from codes.communicators import OfferCacheCommunicator
 
 logger = logging.getLogger('geolocation=fc.Geolocators')
 
+# disable SSL
+import ssl
+import geopy.geocoders
+ctx = ssl.create_default_context()
+ctx.check_hostname = False
+ctx.verify_mode = ssl.CERT_NONE
+geopy.geocoders.options.default_ssl_context = ctx
+
 
 class GeoLocationManager:
     def __init__(self, config):
@@ -110,7 +118,7 @@ class GeoLocationExtractor:
         if domain == "default":
             self.geolocator = Nominatim(user_agent=user_agent)
         else:
-            self.geolocator = Nominatim(user_agent=user_agent, domain=domain)
+            self.geolocator = Nominatim(user_agent=user_agent, domain=domain, scheme='http')
 
     def reverse_geocode(self, lat, lon, sleep_millis=1200):
         """
